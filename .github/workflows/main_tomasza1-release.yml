@@ -1,0 +1,74 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy Node.js app to Azure Web App - tomasza1
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: "tomasza1"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Node.js version
+        uses: actions/setup-node@v1
+        with:
+          node-version: '16.x'
+
+      - name: npm install, build, and test
+        run: |
+          npm install
+          npm run build --if-present
+          npm run test --if-present
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.AZURE_WEBAPP_NAME }}
+          path: .
+
+  release:
+    name: Release Project
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+    - name: Download site content
+      uses: actions/download-artifact@v2
+      with:
+        name: ${{ env.AZURE_WEBAPP_NAME }}
+
+    - name: View content
+      run: ls -R
+
+    - name: Create GitHub release
+      id: create-new-release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.run_number }}
+        release_name: Release ${{ github.run_number }}
+
+    - name: Archive site content
+      uses: thedoctor0/zip-release@master
+      with:
+        filename: ${{ env.AZURE_WEBAPP_NAME }}.zip
+
+    - name: Upload release asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create-new-release.outputs.upload_url }}
+        asset_path: ./${{ env.AZURE_WEBAPP_NAME }}.zip
+        asset_name: ${{ env.AZURE_WEBAPP_NAME }}-v${{ github.run_number }}.zip
+        asset_content_type: application/z
